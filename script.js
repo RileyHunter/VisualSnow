@@ -213,6 +213,8 @@ function BFEPRenderFunc(context, tick) {
 }
 
 
+
+let startTinnitus = () => {
 var audioContext = new AudioContext();
 var wave = audioContext.createOscillator();
 var gain = audioContext.createGain();
@@ -231,8 +233,8 @@ whiteNoise.onaudioprocess = function(e) {
     }
 }
 whiteNoise.connect(gain);
-
-let startTinnitus = () => gain.connect(audioContext.destination);
+gain.connect(audioContext.destination);
+}
 
 
 let snow = new Renderable(snowRenderFunc, snowCnv, delay);
