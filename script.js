@@ -195,7 +195,7 @@ function photopsiaRenderFunc(context, tick) {
 function BFEPRenderFunc(context, tick) {
 	if (tick == 0) {
         this.entities = [];
-        this.meanMsPerSpawn = 100;
+        this.meanMsPerSpawn = 25;
         this.msLifeCycle = 500;
         this.meanTicksPerSpawn = this.meanMsPerSpawn / this.delay;
         this.tickLifeCycle = this.msLifeCycle / this.delay;
