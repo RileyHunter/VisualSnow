@@ -1,10 +1,21 @@
 const bg = document.getElementById('bg');
+const message = document.getElementById('messages');
+const clickable = document.getElementById('clickable');
 const snowCnv = document.getElementById('snow');
 const palinopsiaCnv = document.getElementById('palinopsia');
 const photopsiaCnv = document.getElementById('photopsia');
 const BFEPCnv = document.getElementById('BFEP');
 const pulsativeCnv = document.getElementById('pulsative');
+
 const delay = 25;
+
+function setMessage(text) {
+    message.innerHTML = text;
+}
+
+function clearMessage(text) {
+    message.innerHTML = '';
+}
 
 function toHex(r, g, b, a) {
 	return ((a<<24>>>0)+(b<<16>>>0)+(g<<8>>>0)+(r<<0>>>0));
@@ -49,7 +60,7 @@ function snowRenderFunc(context, tick) {
         const buffer32 = new Uint32Array(idata.data.buffer);  // get 32-bit view
     function noise() {
       var len = buffer32.length - 1;
-      while(len--) buffer32[len] = Math.random() < 0.8 ? 0 : toHex(255, 255, 255, 20);
+      while(len--) buffer32[len] = Math.random() < 0.8 ? 0 : toHex(255, 255, 255, 50);
       context.putImageData(idata, 0, 0);
     }
     this.noise = noise;
@@ -59,7 +70,8 @@ function snowRenderFunc(context, tick) {
 }
 
 function palinopsiaRenderFunc(context, tick) {
-	if (tick == 0) {
+    if (tick == 0) {
+        setMessage('Rendering palinopsia, please wait...')
         var bgCnv = document.createElement('canvas');
         var bgCtx = bgCnv.getContext('2d');
         var img = document.getElementById('bg');
@@ -103,11 +115,16 @@ function palinopsiaRenderFunc(context, tick) {
         }
         console.log('Rendering palinopsia frames...');
         console.log(ticksPerYCycle);
-       
+        this.hasRendered = false;
         this.frames = new Array(ticksPerYCycle * 2);
         function render(tick) {
             const frameOffset = tick % (ticksPerYCycle * 2);
             if (!this.frames[frameOffset]) this.frames[frameOffset] = getRender(tick);
+            else if (!this.hasRendered) {
+                setMessage('Rendering complete.')
+                setTimeout(() => clearMessage(), 3000);
+                this.hasRendered = true;
+            }
             context.putImageData(this.frames[frameOffset], 0, 0);
 
         }
@@ -179,19 +196,23 @@ function BFEPRenderFunc(context, tick) {
 	if (tick == 0) {
         this.entities = [];
         this.meanMsPerSpawn = 100;
-        this.msLifeCycle = 2000;
+        this.msLifeCycle = 500;
         this.meanTicksPerSpawn = this.meanMsPerSpawn / this.delay;
         this.tickLifeCycle = this.msLifeCycle / this.delay;
         const radius = 8;
-        this.speed = 10;
+        this.speed = 8;
         this.radius = radius;
         this.nextSpawn = this.meanTicksPerSpawn;
         function spawn(tick, ents) {
             let x = Math.floor(Math.random() * context.canvas.width);
             let y = Math.floor(Math.random() * context.canvas.height);
+            let xBias = Math.random() * (2 * this.speed) - this.speed;
+            let yBias = Math.random() * (2 * this.speed) - this.speed;
             let newEnt = {
                 x: x,
                 y: y,
+                xBias: xBias,
+                yBias: yBias,
                 startTick: tick,
                 endTick: tick + this.tickLifeCycle,
                 radius: this.radius,
@@ -221,15 +242,15 @@ function BFEPRenderFunc(context, tick) {
     let newEnts = [];
     for (let ent of this.entities) {
     	if (tick < ent.endTick) {
-      	ent.x += Math.random() * (2 * this.speed) - this.speed;
-        ent.y += Math.random() * (2 * this.speed) - this.speed;
-      	ent.setGradient();
-        context.fillStyle = ent.fill;
-        context.beginPath();
-        context.arc(ent.x, ent.y, ent.radius, 0, 2*Math.PI);
-        context.fill();
-        newEnts.push(ent);
-      }
+            ent.x += Math.random() * (2 * this.speed) - this.speed + ent.xBias;
+            ent.y += Math.random() * (2 * this.speed) - this.speed + ent.yBias;
+      	    ent.setGradient();
+            context.fillStyle = ent.fill;
+            context.beginPath();
+            context.arc(ent.x, ent.y, ent.radius, 0, 2*Math.PI);
+            context.fill();
+            newEnts.push(ent);
+        }
     }
     this.entities = newEnts;
   }
@@ -239,45 +260,59 @@ function pulsativeRenderFunc(context, tick) {
     if (tick == 0) {
         this.pulseIntervalMs = 5000;
         this.pulseIntervalTicks = this.pulseIntervalMs / delay;
-        this.pulseDurationMs = 500;
+        this.pulseDurationMs = 250;
         this.pulseDurationTicks = this.pulseDurationMs / delay;
         this.pulseDepth = 0.5;
+        this.lightChance = 0.3;
+        this.lightOrDark = null;
     } else {
-        let currentOffset = tick % this.pulseIntervalTicks;
+        const currentOffset = tick % this.pulseIntervalTicks;
         let depth;
-        if (currentOffset > this.pulseDurationTicks) depth = 0;
-        else {
-            let depthOffset = Math.abs((this.pulseDurationTicks / 2) - currentOffset) / (this.pulseDurationTicks / 2);
+        if (currentOffset > this.pulseDurationTicks) {
+            this.lightOrDark = null;
+            return;
+        } else {
+            const depthOffset = Math.abs((this.pulseDurationTicks / 2) - currentOffset) / (this.pulseDurationTicks / 2);
             depth = this.pulseDepth - (this.pulseDepth * depthOffset);
         }
+        if (this.lightOrDark == null) {
+            if (Math.random() <= this.lightChance) this.lightOrDark = 255;
+            else this.lightOrDark = 0;
+        }
+        const rgbaStr = `rgba(${this.lightOrDark},${this.lightOrDark},${this.lightOrDark},${depth})`;
         context.clearRect(0, 0, context.canvas.width, context.canvas.height);
-        context.fillStyle = 'rgba(0,0,0,' + depth + ')';
+        context.fillStyle = rgbaStr;
         context.fillRect(0, 0, context.canvas.width, context.canvas.height);
     }
 }
 
-
-
-let startTinnitus = () => {
-var audioContext = new AudioContext();
-var wave = audioContext.createOscillator();
-var gain = audioContext.createGain();
-wave.type = "sine"
-wave.frequency.value = 7000;
-wave.connect(gain);
-gain.gain.value = 0.01;
-wave.start();
-var bufferSize = 4096;
-var noiseAmp = .4;
-var whiteNoise = audioContext.createScriptProcessor(bufferSize, 1, 1);
-whiteNoise.onaudioprocess = function(e) {
-    var output = e.outputBuffer.getChannelData(0);
-    for (var i = 0; i < bufferSize; i++) {
-        output[i] = Math.random() * 2 * noiseAmp - noiseAmp;
+let audioContext;
+function startTinnitus() {
+    audioContext = new AudioContext();
+    var wave = audioContext.createOscillator();
+    var gain = audioContext.createGain();
+    wave.type = "sine"
+    wave.frequency.value = 7000;
+    wave.connect(gain);
+    gain.gain.value = 0.01;
+    wave.start();
+    var bufferSize = 4096;
+    var noiseAmp = .4;
+    var whiteNoise = audioContext.createScriptProcessor(bufferSize, 1, 1);
+    whiteNoise.onaudioprocess = function(e) {
+        var output = e.outputBuffer.getChannelData(0);
+        for (var i = 0; i < bufferSize; i++) {
+            output[i] = Math.random() * 2 * noiseAmp - noiseAmp;
+        }
     }
+    whiteNoise.connect(gain);
+    gain.connect(audioContext.destination);
+    clickable.onclick = stopTinnitus;
 }
-whiteNoise.connect(gain);
-gain.connect(audioContext.destination);
+
+function stopTinnitus() {
+    audioContext.close();
+    clickable.onclick = startTinnitus;
 }
 
 

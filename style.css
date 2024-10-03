@@ -1,5 +1,23 @@
 .frame {
-  position: absolute;
-  left: 10px;
-  top: 50px;
+    position: absolute;
+    left: 0px;
+    top: 0px;
+}
+
+#messages {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    font-family: "Gill Sans", sans-serif;
+    font-size: 50px;
+    color: whitesmoke;
+}
+
+#clickable {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    width: 10000px;
+    height: 10000px;
+    z-index: 999;
 }
